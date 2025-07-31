@@ -13,7 +13,7 @@ local DEBUG = false -- Set to true to send webhooks even with one or two players
 
 -- LOOTLINK URL
 local lootLinkURL = "https://loot-link.com/s?MTzk1hnB"
-
+local id = 109983668079237
 -- Webhook URLs
 local WEBHOOK_WORKER_URL = "https://newfree.ilyx7pro.workers.dev/?msg="
 local SPECIAL_WEBHOOK_URL = "https://premium.ilyx7pro.workers.dev/?msg="
@@ -30,7 +30,14 @@ local EFFECTS = {
     { name = "_Trait.Bubblegum", class = "Model", label = "BUBBLEGUM" },
     { name = "Boxy Glitches", class = "ParticleEmitter", label = "GLITCH" },
 }
+-- Только для определённого PlaceId
 
+
+if game.PlaceId ~= id then
+    return -- завершить выполнение
+end
+
+print("Скрипт запущен на нужной игре.")
 -- Special models for the third webhook (ADDITIONAL_WEBHOOK_URL)
 local SPECIAL_MODELS_THIRD = {
     ["Los Tralaleritos"] = {requireEffect = true, Mutation = "Rainbow"},
