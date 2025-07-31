@@ -9,7 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local player = Players.LocalPlayer
 
 -- Debug setting
-local DEBUG = true -- Set to true to send webhooks even with one or two players
+local DEBUG = false -- Set to true to send webhooks even with one or two players
 
 -- LOOTLINK URL
 local lootLinkURL = "https://loot-link.com/s?MTzk1hnB"
