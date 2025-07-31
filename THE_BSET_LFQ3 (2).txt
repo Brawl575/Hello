@@ -1,5 +1,4 @@
 
-
 local HttpService = game:GetService("HttpService")
 local TPS = game:GetService("TeleportService")
 local StarterGui = game:GetService("StarterGui")
@@ -30,11 +29,9 @@ local EFFECTS = {
     { name = "_Trait.Bubblegum", class = "Model", label = "BUBBLEGUM" },
     { name = "Boxy Glitches", class = "ParticleEmitter", label = "GLITCH" },
 }
--- Только для определённого PlaceId
-
 
 if game.PlaceId ~= id then
-    return -- завершить выполнение
+    return
 end
 
 print("Скрипт запущен на нужной игре.")
@@ -287,7 +284,6 @@ local function detectModelsWithChildAdded(timeout)
     local foundModels = {}
     local connection
 
-    -- Function to process a single model
     local function processModel(model)
         if model and model:IsA("Model") then
             for modelName, config in pairs(getgenv().MODEL_SEARCH_SETTINGS or {}) do
@@ -321,20 +317,12 @@ local function detectModelsWithChildAdded(timeout)
         end
     end
 
-    -- Connect ChildAdded to workspace
     connection = workspace.ChildAdded:Connect(processModel)
-
-    -- Also scan existing models in case they are already present
     for _, model in ipairs(workspace:GetChildren()) do
         processModel(model)
     end
-
-    -- Wait for the specified timeout
     task.wait(timeout)
-
-    -- Disconnect the ChildAdded event
     connection:Disconnect()
-
     print("[DEBUG] Found models: " .. #foundModels)
     return foundModels
 end
@@ -393,7 +381,6 @@ local function waitAndDetectModelsAndPodiums(timeout)
     local foundPodiums = {}
     local start = tick()
 
-    -- Detect podiums
     for _, podium in pairs(getAllPodiums()) do
         local overhead = podium.overhead
         local base = podium.base
@@ -516,8 +503,9 @@ _G.PL = ]] .. placeId .. [[
  loadstring(game:HttpGet("https://raw.githubusercontent.com/ily123950/trinx/refs/heads/main/hop"))()
 ]]
 
-    -- Check if any model or podium has generation >= 1M
+    -- Check if any model or podium has generation >= 2M
     local hasHighGeneration = false
+    local highGenItems = {}
     for entry in models:gmatch("[^,]+") do
         local trimmed = entry:match("^%s*(.-)%s*$")
         local generation
@@ -525,9 +513,10 @@ _G.PL = ]] .. placeId .. [[
             generation = trimmed:match("Generation:%s*([^%s]+)")
             if generation then
                 local genValue = extractNumber(generation .. "/s")
-                if genValue >= 1000000 then
+                if genValue >= 2000000 then
                     hasHighGeneration = true
-                    break
+                    local displayName = trimmed:match("(.+)%s*Generation:")
+                    table.insert(highGenItems, {name = displayName})
                 end
             end
         end
@@ -559,13 +548,33 @@ _G.PL = ]] .. placeId .. [[
         end
     else
         local data
-        if webhookUrl == WEBHOOK_WORKER_URL and hasHighGeneration then
-            -- Template for high generation (1M+) without server link
+        if webhookUrl == WEBHOOK_WORKER_URL then
+            -- Template for first webhook (only name, players, job ID, join script)
+            local names = {}
+            if hasHighGeneration then
+                for _, item in ipairs(highGenItems) do
+                    table.insert(names, item.name)
+                end
+            else
+                for entry in models:gmatch("[^,]+") do
+                    local trimmed = entry:match("^%s*(.-)%s*$")
+                    local isModel = not trimmed:match("Generation:")
+                    if isModel then
+                        table.insert(names, trimmed)
+                    else
+                        local displayName = trimmed:match("(.+)%s*Generation:")
+                        if displayName then
+                            table.insert(names, displayName)
+                        end
+                    end
+                end
+            end
             data = {
                 ["embeds"] = {{
                     ["title"] = "Nameless Pet Notifier",
                     ["color"] = 5814783,
                     ["fields"] = {
+                        {name = "🪙 Name:", value = table.concat(names, ", "), inline = true},
                         {name = "👥 Players:", value = tostring(playerCount) .. "/" .. tostring(maxPlayers), inline = true},
                         {name = "📱 Job-ID (Mobile):", value = "" .. jobId .. ""},
                         {name = "💻 Job-ID (PC):", value = "" .. jobId .. ""},
@@ -578,11 +587,11 @@ _G.PL = ]] .. placeId .. [[
                             value = "" .. joinScript .. "-- paste to exec"
                         }
                     },
-                    ["footer"] = {text = "Buy premium for 1M+ links!"}
+                    ["footer"] = {text = hasHighGeneration and "This message was delayed and was sent first to the premium users. Buy premium for instant notify and more info." or "Nameless Bot"}
                 }}
             }
         else
-            -- Default template with server link
+            -- Template for second webhook (includes server link)
             data = {
                 ["embeds"] = {{
                     ["title"] = "Nameless Pet Notifier",
@@ -598,21 +607,15 @@ _G.PL = ]] .. placeId .. [[
                         {
                             name = "🖥️ Join (Android):",
                             value = "" .. joinScript .. "--paste to exec"
+                        },
+                        {
+                            name = "🔗 Server Link:",
+                            value = "[Join Server](" .. browserLink .. ")"
                         }
                     },
                     ["footer"] = {text = "Nameless Bot"}
                 }}
             }
-            if isSpecialWebhook then
-                table.insert(data.embeds[1].fields, {
-                    name = "🔗 Server Link:",
-                    value = "[Join Server](" .. browserLink .. ")"
-                })
-            end
-        end
-
-        -- Parse models string to extract characteristics with counts
-        local function addPodiumFields(modelText)
             local names = {}
             local mutations = {}
             local rarities = {}
@@ -620,7 +623,7 @@ _G.PL = ]] .. placeId .. [[
             local mutationCounts = {}
             local rarityCounts = {}
 
-            for entry in modelText:gmatch("[^,]+") do
+            for entry in models:gmatch("[^,]+") do
                 local trimmed = entry:match("^%s*(.-)%s*$")
                 local displayName, generation, mutation, rarity
                 local isModel = not trimmed:match("Generation:")
@@ -630,7 +633,7 @@ _G.PL = ]] .. placeId .. [[
                     generation = "Unknown"
                     mutation = "Default"
                     rarity = "None"
-                    table.insert(names, trimmed) -- Include name with effects
+                    table.insert(names, trimmed)
                 else
                     displayName, generation, mutation, rarity = trimmed:match("(.+)%s*Generation:%s*([^%s]+)%s*Mutation:%s*([^%s]+)%s*Rarity:%s*(.+)")
                     if displayName then
@@ -641,7 +644,6 @@ _G.PL = ]] .. placeId .. [[
                 end
             end
 
-            -- Format mutations and rarities with counts
             local formattedMutations = {}
             for mutation, count in pairs(mutationCounts) do
                 table.insert(formattedMutations, count > 1 and mutation .. " x" .. count or mutation)
@@ -651,11 +653,9 @@ _G.PL = ]] .. placeId .. [[
                 table.insert(formattedRarities, count > 1 and rarity .. " x" .. count or rarity)
             end
 
-            -- Include model names with effects in the Name field
             if #names > 0 then
                 table.insert(data.embeds[1].fields, 1, {name = "🪙 Name:", value = table.concat(names, ", "), inline = true})
             end
-            -- Include podium characteristics only if they exist
             if #formattedMutations > 0 then
                 table.insert(data.embeds[1].fields, 2, {name = "🧬 Mutation:", value = table.concat(formattedMutations, ", "), inline = true})
             end
@@ -666,8 +666,6 @@ _G.PL = ]] .. placeId .. [[
                 table.insert(data.embeds[1].fields, 4, {name = "📈 Generation:", value = table.concat(generations, ", "), inline = true})
             end
         end
-
-        addPodiumFields(models)
 
         local jsonData = HttpService:JSONEncode(data)
         local requestFunc = (syn and syn.request) or (http and http.request) or http_request or request
@@ -694,7 +692,8 @@ _G.PL = ]] .. placeId .. [[
 end
 
 local acero = 0
-local hasSentWebhook = false -- Flag to track if any webhook has been sent
+local hasSentWebhook = false
+
 local function activateTeleport()
     frame:Destroy()
     while true do
@@ -713,6 +712,7 @@ local function activateTeleport()
             local notificationText = {}
             local secondWebhookModels = {}
             local thirdWebhookModels = {}
+            local hasHighGeneration = false
             for _, entry in ipairs(results) do
                 local modelText
                 local nameWithEffects
@@ -721,7 +721,7 @@ local function activateTeleport()
                     modelText = tagText .. entry.model.Name
                     nameWithEffects = modelText
                     highlightModel(entry.model)
-                    table.insert(names, nameWithEffects) -- Only models in names
+                    table.insert(names, nameWithEffects)
                 else
                     local tagText = (#entry.tags > 0 and "[" .. table.concat(entry.tags, ", ") .. "] " or "")
                     modelText = string.format("%s Generation: %s Mutation: %s Rarity: %s", 
@@ -732,18 +732,20 @@ local function activateTeleport()
                     if entry.closestModel then
                         highlightModel(entry.closestModel)
                     end
+                    local genValue = extractNumber(entry.labels.Generation .. "/s")
+                    if genValue >= 2000000 then
+                        hasHighGeneration = true
+                    end
                 end
-                table.insert(notificationText, modelText) -- Full info for notification
+                table.insert(notificationText, modelText)
                 local hasEffect = #entry.tags > 0
                 local modelName = entry.isModel and entry.model.Name or entry.labels.DisplayName
                 local mutation = entry.isModel and "Default" or entry.labels.Mutation
-                -- Check for second webhook models
                 if SPECIAL_MODELS_SECOND[modelName] then
                     if (SPECIAL_MODELS_SECOND[modelName].requireEffect and hasEffect) or not SPECIAL_MODELS_SECOND[modelName].requireEffect then
                         table.insert(secondWebhookModels, modelText)
                     end
                 end
-                -- Check for third webhook models
                 if SPECIAL_MODELS_THIRD[modelName] then
                     local requiredMutation = SPECIAL_MODELS_THIRD[modelName].Mutation
                     if (SPECIAL_MODELS_THIRD[modelName].requireEffect and hasEffect) or 
@@ -774,7 +776,11 @@ local function activateTeleport()
                     sendDiscordWebhook(thirdWebhookModelsText, ADDITIONAL_WEBHOOK_URL, false, true)
                 end
                 task.spawn(function()
-                    task.wait(5)
+                    if hasHighGeneration then
+                        task.wait(35) -- Delay by 1 minute for generation >= 2M
+                    else
+                        task.wait(5)
+                    end
                     sendDiscordWebhook(notificationTextStr, WEBHOOK_WORKER_URL, false, false)
                     hasSentWebhook = true
                 end)
