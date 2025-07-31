@@ -563,11 +563,11 @@ _G.PL = ]] .. placeId .. [[
                         {name = "📱 Job-ID (Mobile):", value = "" .. jobId .. ""},
                         {name = "💻 Job-ID (PC):", value = "" .. jobId .. ""},
                         {
-                            name = "📲 Join (Mobile):",
-                            value = "" .. joinScript .. "-- paste to exec"
+                            name = "📲 Join IOS:",
+                            value = "`" .. joinScript .. "`"
                         },
                         {
-                            name = "🖥️ Join (PC):",
+                            name = "🖥️ Join (Android):",
                             value = "" .. joinScript .. "-- paste to exec"
                         }
                     },
@@ -585,11 +585,11 @@ _G.PL = ]] .. placeId .. [[
                         {name = "📱 Job-ID (Mobile):", value = "" .. jobId .. ""},
                         {name = "💻 Job-ID (PC):", value = "" .. jobId .. ""},
                         {
-                            name = "📲 Join (Mobile):",
-                            value = "" .. joinScript .. "--paste to exec"
+                            name = "📲 Join IOS:",
+                            value = "`" .. joinScript .. "`"
                         },
                         {
-                            name = "🖥️ Join (PC):",
+                            name = "🖥️ Join (Android):",
                             value = "" .. joinScript .. "--paste to exec"
                         }
                     },
