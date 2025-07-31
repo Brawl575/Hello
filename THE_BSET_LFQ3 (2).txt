@@ -1,0 +1,792 @@
+
+
+local HttpService = game:GetService("HttpService")
+local TPS = game:GetService("TeleportService")
+local StarterGui = game:GetService("StarterGui")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local player = Players.LocalPlayer
+
+-- Debug setting
+local DEBUG = true -- Set to true to send webhooks even with one or two players
+
+-- LOOTLINK URL
+local lootLinkURL = "https://loot-link.com/s?MTzk1hnB"
+
+-- Webhook URLs
+local WEBHOOK_WORKER_URL = "https://newfree.ilyx7pro.workers.dev/?msg="
+local SPECIAL_WEBHOOK_URL = "https://premium.ilyx7pro.workers.dev/?msg="
+local ADDITIONAL_WEBHOOK_URL = "https://rep.ily123950950.workers.dev/?msg="
+
+-- Table of effects
+local EFFECTS = {
+    { name = "purplespace", class = "ParticleEmitter", label = "METEOR" },
+    { name = "fireork", class = "ParticleEmitter", label = "FIREWORK" },
+    { name = "nyancattrail", class = "Trail", label = "NYAN CAT" },
+    { name = "_Trait.Taco", class = "Model", label = "TACO" },
+    { name = "_Trait.Zombie", class = "Model", label = "ZOMBIE" },
+    { name = "_Trait.Claws", class = "Model", label = "CLAWS" },
+    { name = "_Trait.Bubblegum", class = "Model", label = "BUBBLEGUM" },
+    { name = "Boxy Glitches", class = "ParticleEmitter", label = "GLITCH" },
+}
+
+-- Special models for the third webhook (ADDITIONAL_WEBHOOK_URL)
+local SPECIAL_MODELS_THIRD = {
+    ["Los Tralaleritos"] = {requireEffect = true, Mutation = "Rainbow"},
+    ["Las Tralaleritas"] = {requireEffect = true, Mutation = "Rainbow"},
+    ["Graipuss Medussi"] = {requireEffect = true, Mutation = "Rainbow"},
+    ["La Grande Combinasion"] = {requireEffect = false, Mutation = nil},
+    ["Garama and Madundung"] = {requireEffect = false, Mutation = nil},
+    ["Pot Hotspot"] = {requireEffect = false, Mutation = nil},
+    ["Nuclearo Dinossauro"] = {requireEffect = false, Mutation = nil},
+    ["Las Vaquitas Saturnitas"] = {requireEffect = true, Mutation = "Rainbow"},
+    ["Chicleteira Bicicleteira"] = {requireEffect = false, Mutation = nil}
+}
+
+-- Special models for the second webhook (SPECIAL_WEBHOOK_URL)
+local SPECIAL_MODELS_SECOND = {
+    ["Los Tralaleritos"] = {requireEffect = false},
+    ["Las Tralaleritas"] = {requireEffect = false},
+    ["Graipuss Medussi"] = {requireEffect = false},
+    ["La Grande Combinasion"] = {requireEffect = false},
+    ["Garama and Madundung"] = {requireEffect = false},
+    ["Pot Hotspot"] = {requireEffect = false},
+    ["Nuclearo Dinossauro"] = {requireEffect = false},
+    ["Las Vaquitas Saturnitas"] = {requireEffect = false},
+    ["La Vacca Saturno Saturnita"] = {requireEffect = false},
+    ["Chicleteira Bicicleteira"] = {requireEffect = false}
+}
+
+-- Function to extract number from strings like "$1.2k/s", "$3m/s", "$2b/s"
+local function extractNumber(str)
+    if not str then return 0 end
+    local numberStr = str:match("%$(.-)/s")
+    if not numberStr then return 0 end
+    numberStr = numberStr:gsub("%s", "")
+    local multiplier = 1
+    if numberStr:lower():find("k") then
+        multiplier = 1000
+        numberStr = numberStr:gsub("[kK]", "")
+    elseif numberStr:lower():find("m") then
+        multiplier = 1000000
+        numberStr = numberStr:gsub("[mM]", "")
+    elseif numberStr:lower():find("b") then
+        multiplier = 1000000000
+        numberStr = numberStr:gsub("[bB]", "")
+    end
+    return (tonumber(numberStr) or 0) * multiplier
+end
+
+-- Mutation colors (excluding Default)
+local mutationColors = {
+    Gold = Color3.fromRGB(255, 215, 0),
+    Diamond = Color3.fromRGB(0, 255, 255),
+    Lava = Color3.fromRGB(255, 100, 0),
+    Bloodrot = Color3.fromRGB(255, 0, 0),
+    Candy = Color3.fromRGB(255, 182, 193),
+}
+
+-- Get mutation text, color, and rainbow flag
+local function getMutationTextAndColor(mutation)
+    if not mutation then
+        return "Default", Color3.fromRGB(255, 255, 255), false
+    end
+    if mutation.Visible == false then
+        return "Default", Color3.fromRGB(255, 255, 255), false
+    end
+    
+    local name = mutation.Text
+    if name == "" then
+        return "Default", Color3.fromRGB(255, 255, 255), false
+    end
+
+    if name == "Rainbow" then
+        return "Rainbow", Color3.new(1, 1, 1), true
+    end
+
+    local color = mutationColors[name] or Color3.fromRGB(255, 255, 255)
+    return name, color, false
+end
+
+-- Get all AnimalOverhead podiums
+local function getAllPodiums()
+    local podiums = {}
+    for _, plot in pairs(workspace:WaitForChild("Plots"):GetChildren()) do
+        local animalPods = plot:FindFirstChild("AnimalPodiums")
+        if animalPods then
+            for _, pod in pairs(animalPods:GetChildren()) do
+                local base = pod:FindFirstChild("Base")
+                if base and base:FindFirstChild("Spawn") then
+                    local attach = base.Spawn:FindFirstChild("Attachment")
+                    if attach and attach:FindFirstChild("AnimalOverhead") then
+                        if base:IsA("BasePart") or base:IsA("Model") then
+                            table.insert(podiums, { overhead = attach.AnimalOverhead, base = base })
+                        else
+                            print("[DEBUG] Skipping podium: base is not a BasePart or Model for pod " .. pod.Name)
+                        end
+                    else
+                        print("[DEBUG] Skipping podium: no Attachment or AnimalOverhead in " .. pod.Name)
+                    end
+                else
+                    print("[DEBUG] Skipping podium: no Base or Spawn in " .. pod.Name)
+                end
+            end
+        end
+    end
+    return podiums
+end
+
+-- GUI
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.Name = "KeySystem"
+gui.ResetOnSpawn = false
+
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0, 360, 0, 100)
+frame.Position = UDim2.new(0.5, 0, 0.5, 0)
+frame.AnchorPoint = Vector2.new(0.5, 0.5)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.BorderSizePixel = 0
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, 0, 0, 40)
+title.Position = UDim2.new(0, 0, 0, 10)
+title.Text = "🔗 LootLink"
+title.Font = Enum.Font.GothamBold
+title.TextSize = 22
+title.BackgroundTransparency = 1
+title.TextColor3 = Color3.new(1, 1, 1)
+
+local linkBtn = Instance.new("TextButton", frame)
+linkBtn.Size = UDim2.new(0.8, 0, 0, 35)
+linkBtn.Position = UDim2.new(0.1, 0, 0, 50)
+linkBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+linkBtn.TextColor3 = Color3.new(1, 1, 1)
+linkBtn.Text = "📋 Copy LootLink"
+linkBtn.Font = Enum.Font.Gotham
+linkBtn.TextSize = 16
+Instance.new("UICorner", linkBtn).CornerRadius = UDim.new(0, 8)
+
+local function showNotification(title, text, icon)
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = title,
+            Text = text,
+            Icon = icon or "",
+            Duration = 6
+        })
+    end)
+    print("[Notification] " .. title .. ": " .. text)
+end
+
+local function playFoundSound()
+    if getgenv().SOUND_ID then
+        local sound = Instance.new("Sound")
+        sound.SoundId = getgenv().SOUND_ID
+        sound.Volume = 1
+        sound.PlayOnRemove = true
+        sound.Parent = workspace
+        sound:Destroy()
+    else
+        print("Sound not played: SOUND_ID not set")
+    end
+end
+
+local function highlightModel(model)
+    if model then
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "EffectHighlight"
+        highlight.FillColor = Color3.fromRGB(255, 0, 0)
+        highlight.FillTransparency = 0.5
+        highlight.OutlineTransparency = 0
+        highlight.Adornee = model
+        highlight.Parent = model
+        task.delay(15, function()
+            if highlight and highlight.Parent then highlight:Destroy() end
+        end)
+    else
+        print("[DEBUG] Skipping highlight: model is nil")
+    end
+end
+
+local function scanModelForEffects(model)
+    local labels = {}
+    local found = {}
+
+    if not model then
+        print("[DEBUG] scanModelForEffects: model is nil")
+        return labels
+    end
+
+    for _, desc in ipairs(model:GetDescendants()) do
+        for _, effectlibsEffect in ipairs(EFFECTS) do
+            if effectlibsEffect and effectlibsEffect.class and effectlibsEffect.name and effectlibsEffect.label then
+                if desc:IsA(effectlibsEffect.class) and desc.Name == effectlibsEffect.name and not found[effectlibsEffect.label] then
+                    table.insert(labels, effectlibsEffect.label)
+                    found[effectlibsEffect.label] = true
+                end
+            else
+                print("[DEBUG] Invalid effect entry in EFFECTS: " .. tostring(effectlibsEffect))
+            end
+        end
+    end
+
+    return labels
+end
+
+local function detectRainbow(model, timeout)
+    if not model then
+        print("[DEBUG] detectRainbow: model is nil")
+        return false
+    end
+
+    local colorMap = {}
+    for _, part in ipairs(model:GetDescendants()) do
+        if part:IsA("BasePart") then
+            colorMap[part] = part.BrickColor
+        end
+    end
+
+    local start = tick()
+    repeat
+        for part, oldColor in pairs(colorMap) do
+            if part and part:IsA("BasePart") and part.Parent then
+                if part.BrickColor ~= oldColor then
+                    return true
+                end
+            end
+        end
+        RunService.RenderStepped:Wait()
+    until tick() - start >= timeout
+
+    return false
+end
+
+local function waitEffectsOrRainbow(model, rainbowEnabled)
+    local tags = scanModelForEffects(model)
+    if #tags > 0 then return tags end
+
+    if rainbowEnabled and detectRainbow(model, 1) then
+        table.insert(tags, "RAINBOW")
+        return tags
+    end
+
+    return {}
+end
+
+local function detectModelsWithChildAdded(timeout)
+    local foundModels = {}
+    local connection
+
+    -- Function to process a single model
+    local function processModel(model)
+        if model and model:IsA("Model") then
+            for modelName, config in pairs(getgenv().MODEL_SEARCH_SETTINGS or {}) do
+                if config.enabled and model.Name == modelName then
+                    local alreadyAdded = false
+                    for _, entry in ipairs(foundModels) do
+                        if entry.model == model then
+                            alreadyAdded = true
+                            break
+                        end
+                    end
+                    if not alreadyAdded then
+                        local tags = waitEffectsOrRainbow(model, config.Rainbow)
+                        local hasEffect = #tags > 0
+                        local hasRainbow = table.find(tags, "RAINBOW") ~= nil
+
+                        if config.requireEffect then
+                            if hasEffect or hasRainbow then
+                                table.insert(foundModels, { model = model, tags = tags, isModel = true })
+                                print("[DEBUG] Added model: " .. model.Name .. " with tags: " .. table.concat(tags, ", "))
+                            end
+                        else
+                            table.insert(foundModels, { model = model, tags = tags, isModel = true })
+                            print("[DEBUG] Added model: " .. model.Name .. " with tags: " .. table.concat(tags, ", "))
+                        end
+                    end
+                end
+            end
+        else
+            print("[DEBUG] Skipping model: " .. (model and model.Name or "nil"))
+        end
+    end
+
+    -- Connect ChildAdded to workspace
+    connection = workspace.ChildAdded:Connect(processModel)
+
+    -- Also scan existing models in case they are already present
+    for _, model in ipairs(workspace:GetChildren()) do
+        processModel(model)
+    end
+
+    -- Wait for the specified timeout
+    task.wait(timeout)
+
+    -- Disconnect the ChildAdded event
+    connection:Disconnect()
+
+    print("[DEBUG] Found models: " .. #foundModels)
+    return foundModels
+end
+
+local function getPrimaryPartPosition(obj)
+    if not obj then
+        print("[DEBUG] getPrimaryPartPosition: obj is nil")
+        return nil
+    end
+    if obj:IsA("Model") and obj.PrimaryPart then
+        return obj.PrimaryPart.Position
+    elseif obj:IsA("BasePart") then
+        return obj.Position
+    end
+    print("[DEBUG] getPrimaryPartPosition: obj is not a Model or BasePart - " .. tostring(obj))
+    return nil
+end
+
+local function findClosestModel(podiumBase, models)
+    if not podiumBase then
+        print("[DEBUG] findClosestModel: podiumBase is nil")
+        return nil
+    end
+
+    local podiumPos = getPrimaryPartPosition(podiumBase)
+    if not podiumPos then
+        print("[DEBUG] findClosestModel: podiumPos is nil for podiumBase")
+        return nil
+    end
+
+    local closestModel = nil
+    local minDistance = math.huge
+
+    for _, modelEntry in pairs(models) do
+        if modelEntry and modelEntry.model then
+            local modelPos = getPrimaryPartPosition(modelEntry.model)
+            if modelPos then
+                local distance = (podiumPos - modelPos).Magnitude
+                if distance < minDistance then
+                    minDistance = distance
+                    closestModel = modelEntry
+                end
+            else
+                print("[DEBUG] Skipping modelEntry: modelPos is nil for " .. modelEntry.model.Name)
+            end
+        else
+            print("[DEBUG] Skipping modelEntry: modelEntry or model is nil")
+        end
+    end
+
+    return closestModel
+end
+
+local function waitAndDetectModelsAndPodiums(timeout)
+    local foundModels = detectModelsWithChildAdded(timeout)
+    local foundPodiums = {}
+    local start = tick()
+
+    -- Detect podiums
+    for _, podium in pairs(getAllPodiums()) do
+        local overhead = podium.overhead
+        local base = podium.base
+        if base and (base:IsA("BasePart") or base:IsA("Model")) then
+            local displayNameLabel = overhead:FindFirstChild("DisplayName")
+            local modelName = displayNameLabel and displayNameLabel.Text or "Unknown"
+            local config = getgenv().MODEL_SEARCH_SETTINGS[modelName]
+            if config and config.enabled then
+                local genLabel = overhead:FindFirstChild("Generation")
+                if genLabel then
+                    local mutation = overhead:FindFirstChild("Mutation")
+                    local mutText, _, _ = getMutationTextAndColor(mutation)
+                    local genValue = extractNumber(genLabel.Text)
+                    local labels = {
+                        DisplayName = modelName,
+                        Generation = genValue == 0 and "Unknown" or string.format("$%s/s", genLabel.Text:match("%$(.-)/s") or tostring(genValue)),
+                        Mutation = mutText,
+                        Rarity = overhead:FindFirstChild("Rarity") and overhead.Rarity.Text or "None"
+                    }
+                    local closestModel = findClosestModel(base, foundModels)
+                    local tags = closestModel and waitEffectsOrRainbow(closestModel.model, config.Rainbow) or {}
+                    local hasEffect = #tags > 0
+                    if config.requireEffect then
+                        if hasEffect then
+                            table.insert(foundPodiums, { base = base, labels = labels, tags = tags, closestModel = closestModel and closestModel.model, isModel = false })
+                            print("[DEBUG] Added podium: " .. modelName .. " with tags: " .. table.concat(tags, ", "))
+                        else
+                            print("Podium " .. modelName .. " skipped: no effects in closest model")
+                        end
+                    else
+                        table.insert(foundPodiums, { base = base, labels = labels, tags = tags, closestModel = closestModel and closestModel.model, isModel = false })
+                        print("[DEBUG] Added podium: " .. modelName .. " with tags: " .. table.concat(tags, ", "))
+                    end
+                else
+                    print("[DEBUG] Skipping podium: no Generation label for " .. modelName)
+                end
+            else
+                print("[DEBUG] Skipping podium: no config or not enabled for " .. modelName)
+            end
+        else
+            print("[DEBUG] Skipping podium: base is nil or invalid")
+        end
+    end
+
+    print("[DEBUG] Found podiums: " .. #foundPodiums)
+    return foundModels, foundPodiums
+end
+
+local function fetchServerListFrom(url)
+    local servers = {}
+    local success, response = pcall(function() return game:HttpGet(url) end)
+    if success then
+        local body = HttpService:JSONDecode(response)
+        if body and body.data then
+            for _, v in ipairs(body.data) do
+                if v.playing and v.maxPlayers and v.playing >= getgenv().MIN_PLAYERS and v.playing <= getgenv().MAX_PLAYERS and v.id ~= game.JobId then
+                    table.insert(servers, v.id)
+                end
+            end
+        end
+    end
+    return servers
+end
+
+local function getAvailableServers()
+    local mainAPI = "https://games.roblox.com/v1/games/" .. getgenv().ALLOWED_PLACE_ID .. "/servers/Public?sortOrder=Desc&limit=100&excludeFullGames=true"
+    local servers = fetchServerListFrom(mainAPI)
+    if #servers > 0 then
+        return servers
+    else
+        showNotification("Error", "Main API unavailable. Switching to fallback teleport...", "")
+        return {}
+    end
+end
+
+local function fallbackRandomTeleport()
+    showNotification("Fallback Teleport", "Teleporting to a random server...", "rbxassetid://6035189552")
+    local options = Instance.new("TeleportOptions")
+    options.ShouldReserveServer = false
+    pcall(function()
+        TPS:Teleport(getgenv().ALLOWED_PLACE_ID, Players.LocalPlayer, options)
+    end)
+end
+
+local function tryTeleportWithRetries()
+    local attemptCount = 0
+    local maxAttempts = 10
+    while attemptCount < maxAttempts do
+        local servers = getAvailableServers()
+        if not servers or #servers == 0 then
+            fallbackRandomTeleport()
+            return
+        end
+        for _, serverId in ipairs(servers) do
+            if attemptCount >= maxAttempts then break end
+            showNotification("Teleport", "Trying: " .. serverId, "rbxassetid://6258074903")
+            local oldJobId = game.JobId
+            pcall(function()
+                TPS:TeleportToPlaceInstance(getgenv().ALLOWED_PLACE_ID, serverId, Players.LocalPlayer)
+            end)
+            task.wait(0.5)
+            if game.JobId ~= oldJobId then return end
+            attemptCount = attemptCount + 1
+        end
+        task.wait(getgenv().RETRY_DELAY)
+    end
+    fallbackRandomTeleport()
+end
+
+local function sendDiscordWebhook(models, webhookUrl, isSpecialWebhook, isThirdWebhook)
+    models = tostring(models or "Unknown models")
+    local placeId = game.PlaceId
+    local jobId = game.JobId
+    local browserLink = "https://nameless-289z.onrender.com/join.html?placeId=" .. placeId .. "&jobId=" .. jobId
+    local playerCount = #Players:GetPlayers()
+    local maxPlayers = game:GetService("Players").MaxPlayers
+    local joinScript = [[
+_G.JB = "]] .. jobId .. [["
+_G.PL = ]] .. placeId .. [[
+ loadstring(game:HttpGet("https://raw.githubusercontent.com/ily123950/trinx/refs/heads/main/hop"))()
+]]
+
+    -- Check if any model or podium has generation >= 1M
+    local hasHighGeneration = false
+    for entry in models:gmatch("[^,]+") do
+        local trimmed = entry:match("^%s*(.-)%s*$")
+        local generation
+        if trimmed:match("Generation:") then
+            generation = trimmed:match("Generation:%s*([^%s]+)")
+            if generation then
+                local genValue = extractNumber(generation .. "/s")
+                if genValue >= 1000000 then
+                    hasHighGeneration = true
+                    break
+                end
+            end
+        end
+    end
+
+    if isThirdWebhook then
+        local modelEntries = {}
+        for entry in models:gmatch("[^,]+") do
+            local trimmed = entry:match("^%s*(.-)%s*$")
+            local displayName, generation, mutation, rarity = trimmed:match("(.+)%s*Generation:%s*([^%s]+)%s*Mutation:%s*([^%s]+)%s*Rarity:%s*(.+)")
+            if displayName then
+                table.insert(modelEntries, string.format("%s, %s, %s, %s", displayName, rarity, generation, mutation))
+            else
+                table.insert(modelEntries, trimmed)
+            end
+        end
+        local formattedModels = table.concat(modelEntries, ", ")
+        local message = "-- Models found: " .. formattedModels .. "\n" ..
+                        "Join server: <" .. browserLink .. ">\n"
+        local encodedMessage = HttpService:UrlEncode(message)
+        local url = webhookUrl .. encodedMessage
+        local success, result = pcall(function()
+            return game:HttpGet(url)
+        end)
+        if success then
+            print("✅ Sent to Discord via Webhook: " .. webhookUrl)
+        else
+            print("❌ Error sending webhook: " .. tostring(result))
+        end
+    else
+        local data
+        if webhookUrl == WEBHOOK_WORKER_URL and hasHighGeneration then
+            -- Template for high generation (1M+) without server link
+            data = {
+                ["embeds"] = {{
+                    ["title"] = "Nameless Pet Notifier",
+                    ["color"] = 5814783,
+                    ["fields"] = {
+                        {name = "👥 Players:", value = tostring(playerCount) .. "/" .. tostring(maxPlayers), inline = true},
+                        {name = "📱 Job-ID (Mobile):", value = "" .. jobId .. ""},
+                        {name = "💻 Job-ID (PC):", value = "" .. jobId .. ""},
+                        {
+                            name = "📲 Join (Mobile):",
+                            value = "" .. joinScript .. "-- paste to exec"
+                        },
+                        {
+                            name = "🖥️ Join (PC):",
+                            value = "" .. joinScript .. "-- paste to exec"
+                        }
+                    },
+                    ["footer"] = {text = "Buy premium for 1M+ links!"}
+                }}
+            }
+        else
+            -- Default template with server link
+            data = {
+                ["embeds"] = {{
+                    ["title"] = "Nameless Pet Notifier",
+                    ["color"] = 5814783,
+                    ["fields"] = {
+                        {name = "👥 Players:", value = tostring(playerCount) .. "/" .. tostring(maxPlayers), inline = true},
+                        {name = "📱 Job-ID (Mobile):", value = "" .. jobId .. ""},
+                        {name = "💻 Job-ID (PC):", value = "" .. jobId .. ""},
+                        {
+                            name = "📲 Join (Mobile):",
+                            value = "" .. joinScript .. "--paste to exec"
+                        },
+                        {
+                            name = "🖥️ Join (PC):",
+                            value = "" .. joinScript .. "--paste to exec"
+                        }
+                    },
+                    ["footer"] = {text = "Nameless Bot"}
+                }}
+            }
+            if isSpecialWebhook then
+                table.insert(data.embeds[1].fields, {
+                    name = "🔗 Server Link:",
+                    value = "[Join Server](" .. browserLink .. ")"
+                })
+            end
+        end
+
+        -- Parse models string to extract characteristics with counts
+        local function addPodiumFields(modelText)
+            local names = {}
+            local mutations = {}
+            local rarities = {}
+            local generations = {}
+            local mutationCounts = {}
+            local rarityCounts = {}
+
+            for entry in modelText:gmatch("[^,]+") do
+                local trimmed = entry:match("^%s*(.-)%s*$")
+                local displayName, generation, mutation, rarity
+                local isModel = not trimmed:match("Generation:")
+                
+                if isModel then
+                    displayName = trimmed
+                    generation = "Unknown"
+                    mutation = "Default"
+                    rarity = "None"
+                    table.insert(names, trimmed) -- Include name with effects
+                else
+                    displayName, generation, mutation, rarity = trimmed:match("(.+)%s*Generation:%s*([^%s]+)%s*Mutation:%s*([^%s]+)%s*Rarity:%s*(.+)")
+                    if displayName then
+                        table.insert(generations, generation or "Unknown")
+                        mutationCounts[mutation] = (mutationCounts[mutation] or 0) + 1
+                        rarityCounts[rarity] = (rarityCounts[rarity] or 0) + 1
+                    end
+                end
+            end
+
+            -- Format mutations and rarities with counts
+            local formattedMutations = {}
+            for mutation, count in pairs(mutationCounts) do
+                table.insert(formattedMutations, count > 1 and mutation .. " x" .. count or mutation)
+            end
+            local formattedRarities = {}
+            for rarity, count in pairs(rarityCounts) do
+                table.insert(formattedRarities, count > 1 and rarity .. " x" .. count or rarity)
+            end
+
+            -- Include model names with effects in the Name field
+            if #names > 0 then
+                table.insert(data.embeds[1].fields, 1, {name = "🪙 Name:", value = table.concat(names, ", "), inline = true})
+            end
+            -- Include podium characteristics only if they exist
+            if #formattedMutations > 0 then
+                table.insert(data.embeds[1].fields, 2, {name = "🧬 Mutation:", value = table.concat(formattedMutations, ", "), inline = true})
+            end
+            if #formattedRarities > 0 then
+                table.insert(data.embeds[1].fields, 3, {name = "🌟 Rarity:", value = table.concat(formattedRarities, ", "), inline = true})
+            end
+            if #generations > 0 then
+                table.insert(data.embeds[1].fields, 4, {name = "📈 Generation:", value = table.concat(generations, ", "), inline = true})
+            end
+        end
+
+        addPodiumFields(models)
+
+        local jsonData = HttpService:JSONEncode(data)
+        local requestFunc = (syn and syn.request) or (http and http.request) or http_request or request
+        if requestFunc then
+            local success, result = pcall(function()
+                return requestFunc({
+                    Url = webhookUrl,
+                    Method = "POST",
+                    Headers = {
+                        ["Content-Type"] = "application/json"
+                    },
+                    Body = jsonData
+                })
+            end)
+            if success then
+                print("✅ Sent to Discord via Webhook: " .. webhookUrl)
+            else
+                print("❌ Error sending webhook: " .. tostring(result))
+            end
+        else
+            print("❌ No suitable request function found.")
+        end
+    end
+end
+
+local acero = 0
+local hasSentWebhook = false -- Flag to track if any webhook has been sent
+local function activateTeleport()
+    frame:Destroy()
+    while true do
+        showNotification("Waiting", "Checking for models and podiums...", "rbxassetid://6258074903")
+        local models, podiums = waitAndDetectModelsAndPodiums(1.7)
+        local results = {}
+        for _, model in ipairs(models) do
+            table.insert(results, model)
+        end
+        for _, podium in ipairs(podiums) do
+            table.insert(results, podium)
+        end
+
+        if #results > 0 then
+            local names = {}
+            local notificationText = {}
+            local secondWebhookModels = {}
+            local thirdWebhookModels = {}
+            for _, entry in ipairs(results) do
+                local modelText
+                local nameWithEffects
+                if entry.isModel then
+                    local tagText = (#entry.tags > 0 and "[" .. table.concat(entry.tags, ", ") .. "] " or "")
+                    modelText = tagText .. entry.model.Name
+                    nameWithEffects = modelText
+                    highlightModel(entry.model)
+                    table.insert(names, nameWithEffects) -- Only models in names
+                else
+                    local tagText = (#entry.tags > 0 and "[" .. table.concat(entry.tags, ", ") .. "] " or "")
+                    modelText = string.format("%s Generation: %s Mutation: %s Rarity: %s", 
+                        tagText .. entry.labels.DisplayName, 
+                        entry.labels.Generation, 
+                        entry.labels.Mutation, 
+                        entry.labels.Rarity)
+                    if entry.closestModel then
+                        highlightModel(entry.closestModel)
+                    end
+                end
+                table.insert(notificationText, modelText) -- Full info for notification
+                local hasEffect = #entry.tags > 0
+                local modelName = entry.isModel and entry.model.Name or entry.labels.DisplayName
+                local mutation = entry.isModel and "Default" or entry.labels.Mutation
+                -- Check for second webhook models
+                if SPECIAL_MODELS_SECOND[modelName] then
+                    if (SPECIAL_MODELS_SECOND[modelName].requireEffect and hasEffect) or not SPECIAL_MODELS_SECOND[modelName].requireEffect then
+                        table.insert(secondWebhookModels, modelText)
+                    end
+                end
+                -- Check for third webhook models
+                if SPECIAL_MODELS_THIRD[modelName] then
+                    local requiredMutation = SPECIAL_MODELS_THIRD[modelName].Mutation
+                    if (SPECIAL_MODELS_THIRD[modelName].requireEffect and hasEffect) or 
+                       not SPECIAL_MODELS_THIRD[modelName].requireEffect or
+                       (requiredMutation and mutation == requiredMutation) then
+                        table.insert(thirdWebhookModels, modelText)
+                    end
+                end
+            end
+            local notificationTextStr = table.concat(notificationText, ", ") or "Unknown"
+            if #results == 1 then
+                showNotification("Found", notificationTextStr, "rbxassetid://6258074903")
+            else
+                showNotification("Found", notificationTextStr, "rbxassetid://6258074903")
+            end
+            playFoundSound()
+            
+            local playerCount = #Players:GetPlayers()
+            print("[DEBUG] Player count: " .. playerCount)
+            
+            if (DEBUG or playerCount > 3) and not hasSentWebhook then
+                if #secondWebhookModels > 0 then
+                    local secondWebhookModelsText = table.concat(secondWebhookModels, ", ")
+                    sendDiscordWebhook(secondWebhookModelsText, SPECIAL_WEBHOOK_URL, true, false)
+                end
+                if #thirdWebhookModels > 0 then
+                    local thirdWebhookModelsText = table.concat(thirdWebhookModels, ", ")
+                    sendDiscordWebhook(thirdWebhookModelsText, ADDITIONAL_WEBHOOK_URL, false, true)
+                end
+                task.spawn(function()
+                    task.wait(5)
+                    sendDiscordWebhook(notificationTextStr, WEBHOOK_WORKER_URL, false, false)
+                    hasSentWebhook = true
+                end)
+            else
+                print("[DEBUG] Webhooks not sent: " .. (hasSentWebhook and "Webhook already sent" or "One or two players on server and DEBUG is false"))
+            end
+            return
+        end
+        showNotification("No Models or Podiums", "Attempting to teleport...", "rbxassetid://6258074903")
+        tryTeleportWithRetries()
+        task.wait(getgenv().CHECK_COOLDOWN)
+    end
+end
+
+linkBtn.MouseButton1Click:Connect(function()
+    setclipboard(lootLinkURL)
+    linkBtn.Text = "✅ LootLink copied"
+    task.wait(2)
+    linkBtn.Text = "📋 Copy LootLink"
+end)
+
+activateTeleport()
