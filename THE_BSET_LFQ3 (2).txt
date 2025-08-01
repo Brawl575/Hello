@@ -45,7 +45,9 @@ local SPECIAL_MODELS_THIRD = {
     ["Pot Hotspot"] = {requireEffect = false, Mutation = nil},
     ["Nuclearo Dinossauro"] = {requireEffect = false, Mutation = nil},
     ["Las Vaquitas Saturnitas"] = {requireEffect = true, Mutation = "Rainbow"},
-    ["Chicleteira Bicicleteira"] = {requireEffect = false, Mutation = nil}
+    ["Chicleteira Bicicleteira"] = {requireEffect = false, Mutation = nil},
+    ["Los Combinasionas"] = { requireEffect = false, Mutation = nil },
+    ["Dragon Cannelloni"] = { requireEffect = false, Mutation = nil }    
 }
 
 -- Special models for the second webhook (SPECIAL_WEBHOOK_URL)
@@ -59,7 +61,9 @@ local SPECIAL_MODELS_SECOND = {
     ["Nuclearo Dinossauro"] = {requireEffect = false},
     ["Las Vaquitas Saturnitas"] = {requireEffect = false},
     ["La Vacca Saturno Saturnita"] = {requireEffect = false},
-    ["Chicleteira Bicicleteira"] = {requireEffect = false}
+    ["Chicleteira Bicicleteira"] = {requireEffect = false},
+    ["Los Combinasionas"] = { requireEffect = false },
+    ["Dragon Cannelloni"] = { requireEffect = false }
 }
 
 -- Function to extract number from strings like "$1.2k/s", "$3m/s", "$2b/s"
