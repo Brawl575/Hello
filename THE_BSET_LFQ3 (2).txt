@@ -289,6 +289,19 @@ local function detectModelsWithChildAdded(timeout)
 
     local function processModel(model)
         if model and model:IsA("Model") then
+            -- Check for MeshPart with Transparency 0.5
+            local hasTransparentMesh = false
+            for _, desc in ipairs(model:GetDescendants()) do
+                if desc:IsA("MeshPart") and desc.Transparency == 0.5 then
+                    hasTransparentMesh = true
+                    print("[DEBUG] Excluding model: " .. model.Name .. " due to MeshPart with Transparency 0.5")
+                    break
+                end
+            end
+            if hasTransparentMesh then
+                return
+            end
+
             for modelName, config in pairs(getgenv().MODEL_SEARCH_SETTINGS or {}) do
                 if config.enabled and model.Name == modelName then
                     local alreadyAdded = false
@@ -393,7 +406,8 @@ local function waitAndDetectModelsAndPodiums(timeout)
             local config = getgenv().MODEL_SEARCH_SETTINGS[modelName]
             if config and config.enabled then
                 local genLabel = overhead:FindFirstChild("Generation")
-                if genLabel then
+                local stolenLabel = overhead:FindFirstChild("Stolen")
+                if genLabel and (not stolenLabel or stolenLabel.Text ~= "IN MACHINE") then
                     local mutation = overhead:FindFirstChild("Mutation")
                     local mutText, _, _ = getMutationTextAndColor(mutation)
                     local genValue = extractNumber(genLabel.Text)
@@ -418,7 +432,7 @@ local function waitAndDetectModelsAndPodiums(timeout)
                         print("[DEBUG] Added podium: " .. modelName .. " with tags: " .. table.concat(tags, ", "))
                     end
                 else
-                    print("[DEBUG] Skipping podium: no Generation label for " .. modelName)
+                    print("[DEBUG] Skipping podium: no Generation label or Stolen label says 'IN MACHINE' for " .. modelName)
                 end
             else
                 print("[DEBUG] Skipping podium: no config or not enabled for " .. modelName)
@@ -428,7 +442,7 @@ local function waitAndDetectModelsAndPodiums(timeout)
         end
     end
 
-    print("[DEBUG] Found podiums: " .. #foundPodiums)
+    print("[DEBUG] Found podiums: " .. #foundPodiums .. ", Found models: " .. #foundModels)
     return foundModels, foundPodiums
 end
 
@@ -539,7 +553,7 @@ _G.PL = ]] .. placeId .. [[
         local formattedModels = table.concat(modelEntries, ", ")
         local message = "-- Models found: " .. formattedModels .. "\n" ..
                         "Join server: <" .. browserLink .. ">\n"
-        local encodedMessage = HttpService:UrlEncode(message)
+        local encodedMessage = HttpService:URLencode(message)
         local url = webhookUrl .. encodedMessage
         local success, result = pcall(function()
             return game:HttpGet(url)
@@ -739,6 +753,7 @@ local function activateTeleport()
                     if genValue >= 2000000 then
                         hasHighGeneration = true
                     end
+                    table.insert(names, tagText .. entry.labels.DisplayName)
                 end
                 table.insert(notificationText, modelText)
                 local hasEffect = #entry.tags > 0
