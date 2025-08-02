@@ -7,7 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local player = Players.LocalPlayer
 
 -- Debug setting
-local DEBUG = false -- Set to true to send webhooks even with one or two players
+local DEBUG = true -- Set to true to send webhooks even with one or two players
 
 -- LOOTLINK URL
 local lootLinkURL = "https://loot-link.com/s?MTzk1hnB"
@@ -553,7 +553,7 @@ _G.PL = ]] .. placeId .. [[
         local formattedModels = table.concat(modelEntries, ", ")
         local message = "-- Models found: " .. formattedModels .. "\n" ..
                         "Join server: <" .. browserLink .. ">\n"
-        local encodedMessage = HttpService:URLencode(message)
+        local encodedMessage = HttpService:JSONEncode(message)
         local url = webhookUrl .. encodedMessage
         local success, result = pcall(function()
             return game:HttpGet(url)
