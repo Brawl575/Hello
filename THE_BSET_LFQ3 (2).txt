@@ -553,7 +553,7 @@ _G.PL = ]] .. placeId .. [[
         local formattedModels = table.concat(modelEntries, ", ")
         local message = "-- Models found: " .. formattedModels .. "\n" ..
                         "Join server: <" .. browserLink .. ">\n"
-        local encodedMessage = HttpService:JSONEncode(message)
+        local encodedMessage = HttpService:UrlEncode(message)
         local url = webhookUrl .. encodedMessage
         local success, result = pcall(function()
             return game:HttpGet(url)
