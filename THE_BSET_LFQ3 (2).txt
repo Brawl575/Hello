@@ -559,7 +559,7 @@ _G.PL = ]] .. placeId .. [[
             return game:HttpGet(url)
         end)
         if success then
-            print("✅ Sent to Discord via Webhook: " .. webhookUrl)
+            print("catched")
         else
             print("❌ Error sending webhook: " .. tostring(result))
         end
