@@ -604,7 +604,7 @@ _G.PL = ]] .. placeId .. [[
                             value = "" .. joinScript .. "-- paste to exec"
                         }
                     },
-                    ["footer"] = {text = hasHighGeneration and "This message was delayed and was sent first to the premium users. Dm Dex to buy." or "Nameless Bot"}
+                    ["footer"] = {text = hasHighGeneration and "This message was delayed and was sent first to the premium users. Dm @user to buy." or "Nameless Bot"}
                 }}
             }
         else
