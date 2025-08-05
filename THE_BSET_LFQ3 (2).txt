@@ -1,3 +1,27 @@
+getgenv().ALLOWED_PLACE_ID = 109983668079237
+getgenv().RETRY_DELAY = 2
+getgenv().MIN_PLAYERS = 2
+getgenv().MAX_PLAYERS = 7
+getgenv().CHECK_COOLDOWN = 5
+getgenv().SOUND_ID = nil
+getgenv().MODEL_SEARCH_SETTINGS = {
+    ["Los Tralaleritos"] = { enabled = true, requireEffect = false },
+    ["Graipuss Medussi"] = { enabled = true, requireEffect = false },
+    ["La Grande Combinasion"] = { enabled = true, requireEffect = false },
+    ["Garama and Madundung"] = { enabled = true, requireEffect = false },
+    ["La Vacca Saturno Saturnita"] = { enabled = true, requireEffect = false },
+    ["Tralalero Tralala"] = { enabled = false, requireEffect = false },
+    ["Odin Din Din Dun"] = { enabled = false, requireEffect = false },
+    ["Las Tralaleritas"] = { enabled = true, requireEffect = false },
+    ["Pot Hotspot"] = { enabled = true, requireEffect = false },
+    ["Nuclearo Dinossauro"] = { enabled = true, requireEffect = false },
+    ["Sammyni Spyderini"] = { enabled = true, requireEffect = false },
+    ["Las Vaquitas Saturnitas"] = { enabled = true, requireEffect = false },
+    ["Chicleteira Bicicleteira"] = { enabled = true, requireEffect = false },
+    ["Los Combinasionas"] = { enabled = true, requireEffect = false },
+    ["Dragon Cannelloni"] = { enabled = true, requireEffect = false },
+}
+
 local HttpService = game:GetService("HttpService")
 local TPS = game:GetService("TeleportService")
 local StarterGui = game:GetService("StarterGui")
@@ -108,7 +132,7 @@ local function getMutationTextAndColor(mutation)
         return "Default", Color3.fromRGB(255, 255, 255), false
     end
 
-    if name == "Rainbow" then
+        if name == "Rainbow" then
         return "Rainbow", Color3.new(1, 1, 1), true
     end
 
@@ -272,6 +296,7 @@ local function detectRainbow(model, timeout)
 end
 
 local function waitEffectsOrRainbow(model, rainbowEnabled)
+   
     local tags = scanModelForEffects(model)
     if #tags > 0 then return tags end
 
@@ -289,19 +314,6 @@ local function detectModelsWithChildAdded(timeout)
 
     local function processModel(model)
         if model and model:IsA("Model") then
-            -- Check for MeshPart with Transparency 0.5
-            local hasTransparentMesh = false
-            for _, desc in ipairs(model:GetDescendants()) do
-                if desc:IsA("MeshPart") and desc.Transparency == 0.5 then
-                    hasTransparentMesh = true
-                    print("[DEBUG] Excluding model: " .. model.Name .. " due to MeshPart with Transparency 0.5")
-                    break
-                end
-            end
-            if hasTransparentMesh then
-                return
-            end
-
             for modelName, config in pairs(getgenv().MODEL_SEARCH_SETTINGS or {}) do
                 if config.enabled and model.Name == modelName then
                     local alreadyAdded = false
@@ -406,8 +418,7 @@ local function waitAndDetectModelsAndPodiums(timeout)
             local config = getgenv().MODEL_SEARCH_SETTINGS[modelName]
             if config and config.enabled then
                 local genLabel = overhead:FindFirstChild("Generation")
-                local stolenLabel = overhead:FindFirstChild("Stolen")
-                if genLabel and (not stolenLabel or stolenLabel.Text ~= "IN MACHINE") then
+                if genLabel then
                     local mutation = overhead:FindFirstChild("Mutation")
                     local mutText, _, _ = getMutationTextAndColor(mutation)
                     local genValue = extractNumber(genLabel.Text)
@@ -432,7 +443,7 @@ local function waitAndDetectModelsAndPodiums(timeout)
                         print("[DEBUG] Added podium: " .. modelName .. " with tags: " .. table.concat(tags, ", "))
                     end
                 else
-                    print("[DEBUG] Skipping podium: no Generation label or Stolen label says 'IN MACHINE' for " .. modelName)
+                    print("[DEBUG] Skipping podium: no Generation label for " .. modelName)
                 end
             else
                 print("[DEBUG] Skipping podium: no config or not enabled for " .. modelName)
