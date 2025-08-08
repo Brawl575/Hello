@@ -1,27 +1,3 @@
-getgenv().ALLOWED_PLACE_ID = 109983668079237
-getgenv().RETRY_DELAY = 2
-getgenv().MIN_PLAYERS = 2
-getgenv().MAX_PLAYERS = 7
-getgenv().CHECK_COOLDOWN = 5
-getgenv().SOUND_ID = nil
-getgenv().MODEL_SEARCH_SETTINGS = {
-    ["Los Tralaleritos"] = { enabled = true, requireEffect = false },
-    ["Graipuss Medussi"] = { enabled = true, requireEffect = false },
-    ["La Grande Combinasion"] = { enabled = true, requireEffect = false },
-    ["Garama and Madundung"] = { enabled = true, requireEffect = false },
-    ["La Vacca Saturno Saturnita"] = { enabled = true, requireEffect = false },
-    ["Tralalero Tralala"] = { enabled = false, requireEffect = false },
-    ["Odin Din Din Dun"] = { enabled = false, requireEffect = false },
-    ["Las Tralaleritas"] = { enabled = true, requireEffect = false },
-    ["Pot Hotspot"] = { enabled = true, requireEffect = false },
-    ["Nuclearo Dinossauro"] = { enabled = true, requireEffect = false },
-    ["Sammyni Spyderini"] = { enabled = true, requireEffect = false },
-    ["Las Vaquitas Saturnitas"] = { enabled = true, requireEffect = false },
-    ["Chicleteira Bicicleteira"] = { enabled = true, requireEffect = false },
-    ["Los Combinasionas"] = { enabled = true, requireEffect = false },
-    ["Dragon Cannelloni"] = { enabled = true, requireEffect = false },
-}
-
 local HttpService = game:GetService("HttpService")
 local TPS = game:GetService("TeleportService")
 local StarterGui = game:GetService("StarterGui")
