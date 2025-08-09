@@ -34,6 +34,19 @@ if game.PlaceId ~= id then
 end
 
 print("Скрипт запущен на нужной игре.")
+local folderName = "NHUses"
+
+if not game.Workspace:FindFirstChild(folderName) then
+    local folder = Instance.new("Folder")
+    folder.Name = folderName
+    folder.Parent = game.Workspace
+    print("folder '" .. folderName .. "' created.")
+else
+    print("folder '" .. folderName .. "' already exists.")
+end
+if game.PlaceId ~= id then
+    return
+end
 -- Special models for the third webhook (ADDITIONAL_WEBHOOK_URL)
 local SPECIAL_MODELS_THIRD = {
     ["Los Tralaleritos"] = {requireEffect = true, Mutation = "Rainbow"},
