@@ -64,18 +64,24 @@ local SPECIAL_MODELS_THIRD = {
 
 -- Special models for the second webhook (SPECIAL_WEBHOOK_URL)
 local SPECIAL_MODELS_SECOND = {
-    ["Los Tralaleritos"] = {requireEffect = false},
-    ["Las Tralaleritas"] = {requireEffect = false},
-    ["Graipuss Medussi"] = {requireEffect = false},
-    ["La Grande Combinasion"] = {requireEffect = false},
-    ["Garama and Madundung"] = {requireEffect = false},
-    ["Pot Hotspot"] = {requireEffect = false},
-    ["Nuclearo Dinossauro"] = {requireEffect = false},
-    ["Las Vaquitas Saturnitas"] = {requireEffect = false},
-    ["La Vacca Saturno Saturnita"] = {requireEffect = false},
-    ["Chicleteira Bicicleteira"] = {requireEffect = false},
+    ["Los Tralaleritos"] = { requireEffect = false },
+    ["Las Tralaleritas"] = { requireEffect = false },
+    ["Graipuss Medussi"] = { requireEffect = false },
+    ["La Grande Combinasion"] = { requireEffect = false },
+    ["Garama and Madundung"] = { requireEffect = false },
+    ["Pot Hotspot"] = { requireEffect = false },
+    ["Nuclearo Dinossauro"] = { requireEffect = false },
+    ["Las Vaquitas Saturnitas"] = { requireEffect = false },
+    ["La Vacca Saturno Saturnita"] = { requireEffect = false },
+    ["Chicleteira Bicicleteira"] = { requireEffect = false },
     ["Los Combinasionas"] = { requireEffect = false },
-    ["Dragon Cannelloni"] = { requireEffect = false }
+    ["Dragon Cannelloni"] = { requireEffect = false },
+    ["Chimpanzini Spiderini"] = { requireEffect = false },
+    ["Torrtuginni Dragonfrutini"] = { requireEffect = false },
+    ["Agarrini La Palini"] = { requireEffect = false },
+    ["Los Hotspotsitos"] = { requireEffect = false },
+    ["Esok Sekolah"] = { requireEffect = false },
+    ["Karkerkar Kurkur"] = { requireEffect = false }
 }
 
 -- Function to extract number from strings like "$1.2k/s", "$3m/s", "$2b/s"
